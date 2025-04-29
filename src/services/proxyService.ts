@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { buildNodeClient, NodeClient } from '../tools/tequila';
 import { ConnectionStatus } from 'mysterium-vpn-js';
+import dotenv from 'dotenv';
+dotenv.config();
 interface Proxy {
   id: string;
   host: string;
@@ -220,13 +222,22 @@ class ProxyService {
   }
 
   makeProxiesManual() {
-    for (let i = 1; i <= 1; i++) {
-      const proxyInfo:Proxy = {
-        id: (20000 + i).toString(),//Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        host: '78.46.80.162',
-        port: 20000 + i,
-        proxyPort: 10000 + i,
-        country: 'IT',
+    // Read start and end from .env, with fallback default values
+    const startId = parseInt(process.env.PROXY_START_ID || '1', 10);
+    const endId = parseInt(process.env.PROXY_END_ID || '400', 10);
+    const baseHost = process.env.PROXY_HOST || '78.46.80.162';
+    const baseProxyPort = parseInt(process.env.PROXY_BASE_PORT || '10000', 10);
+    const baseAPIPort = parseInt(process.env.API_BASE_PORT || '20000', 10);
+    const defaultCountry = process.env.PROXY_COUNTRY || 'IT';
+
+    // Loop from start to end
+    for (let i = startId; i <= endId; i++) {
+      const proxyInfo: Proxy = {
+        id: i.toString(),
+        host: baseHost,
+        port: baseAPIPort + i,
+        proxyPort: baseProxyPort + i,
+        country: defaultCountry,
         status: 'unknown',
         lastChecked: undefined,
         node: undefined
