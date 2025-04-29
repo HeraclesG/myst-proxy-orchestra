@@ -1,0 +1,33 @@
+{
+  "name": "mysterium-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node src/proxy.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^17.0.21",
+    "chalk": "^5.4.1",
+    "dotenv": "^16.5.0",
+    "ethers": "^6.13.5",
+    "express": "^5.1.0",
+    "http-proxy": "^1.18.1",
+    "https-proxy-agent": "^7.0.6",
+    "mysterium-vpn-js": "^19.3.0",
+    "node-cron": "^3.0.3",
+    "prettier": "^2.5.1",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.2",
+    "web3": "^4.16.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/http-proxy": "^1.17.16",
+    "@types/node-cron": "^3.0.11"
+  }
+}

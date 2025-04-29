@@ -1,0 +1,17 @@
+version: '3.0'
+services:
+  c1001-node:
+    image: mysteriumnetwork/myst:latest
+    ports:
+      - 21001:21001
+      - 11001:11001
+    cap_add:
+      - NET_ADMIN
+    command: '--ui.port=21001 --proxymode daemon'
+    volumes:
+      - ./myst-node-c1001:/var/lib/mysterium-node
+  fleet-10:
+    image: tianon/true
+    restart: 'no'
+    depends_on:
+      - c1001-node
