@@ -9,19 +9,20 @@ interface Proxy {
   port: number;
   proxyPort: number;
   country: string;
-  status: string;
+  status: ConnectionStatus;
   lastChecked?: Date;
   node: NodeClient | undefined;
+  is_running: boolean;
 }
 
 class ProxyService {
-  private proxies: Proxy[] = [];
+  public proxies: Proxy[] = [];
 
   // Add a new proxy
   addProxy(proxyData: Omit<Proxy, 'id' | 'status' | 'lastChecked' | 'node'>): Proxy {
     const newProxy: Proxy = {
       id: Date.now().toString(),
-      status: 'unknown',
+      status: ConnectionStatus.NOT_CONNECTED,
       lastChecked: undefined,
       node: undefined,
       ...proxyData
@@ -48,18 +49,35 @@ class ProxyService {
     const proxy = this.getProxyById(proxyId);
     if (!proxy) return;
     proxy.node = await buildNodeClient(proxy.port);
+    proxy.status = ConnectionStatus.NOT_CONNECTED;
   }
 
   // Connect to all proxies
   async connectAllProxies() {
-    for (const proxy of this.proxies) {
-      await proxy.node?.auth();
-      // await proxy.node?.cancelConnection();
-      const result = await this.checkProxyStatus(proxy.id);
-      if (result && result.status === 'inactive') await this.connectProxy(proxy.id);
+    const connectPromises = this.proxies.map(async (proxy) => {
+      try {
+          // Ensure node exists before attempting to authenticate
+          if (!proxy.node) {
+              console.warn(`No node found for proxy ${proxy.id}`);
+              return null;
+          }
+          await proxy.node.auth();
+          const result = await this.checkProxyStatus(proxy.id);
 
-      else console.log(`${proxy.host}:${proxy.port} - ${result?.status}`);
-    }
+          // Connect if inactive
+          if(!result) return null;
+          if (result && result.status === ConnectionStatus.NOT_CONNECTED) {
+              await this.connectProxy(proxy.id);
+              return proxy;
+          } else {
+              return proxy;
+          }
+      } catch (error) {
+          console.error(`Error processing proxy ${proxy.id}:`, error);
+          return null;
+      }
+    });
+    Promise.all(connectPromises);
   }
 
 
@@ -71,16 +89,18 @@ class ProxyService {
     // proxy.node = await buildNodeClient(proxy.port);
     try {
       await proxy.node?.auth();
+      proxy.status = ConnectionStatus.CONNECTING;
       const connectResult = await proxy.node?.reconnectToCurrent(proxy.proxyPort);
       if (connectResult) {
-        proxy.status = 'active';
+        proxy.status = connectResult;
         return proxy
       } else {
-        proxy.status = 'inactive';
+        proxy.status = ConnectionStatus.NOT_CONNECTED;
         return await this.reconnectCountryProxy(proxy.id, proxy.country);
          
       }
     } catch (err: any) {
+      proxy.status = ConnectionStatus.NOT_CONNECTED;
       console.error(`failed to reconnect, error: ${err}`);
       return null
     }
@@ -93,14 +113,16 @@ class ProxyService {
     try {
       await proxy.node?.auth();
       proxy.country = country;
+      proxy.status = ConnectionStatus.CONNECTING;
       const connectResult = await proxy.node?.quickConnectTo(proxy.country, { proxyPort: proxy.proxyPort, retries: 5 });
       if (connectResult) {
-        proxy.status = 'active';
+        proxy.status = connectResult;
       } else {
-        proxy.status = 'inactive';
+        proxy.status = ConnectionStatus.NOT_CONNECTED;
       }
       return proxy
     } catch (err: any) {
+      proxy.status = ConnectionStatus.NOT_CONNECTED;
       console.error(`failed to reconnect to country ${country}, error: ${err}`);
       return null
     }
@@ -116,14 +138,16 @@ class ProxyService {
     try {
       await proxy.node?.auth();
       proxy.country = country;
+      proxy.status = ConnectionStatus.CONNECTING;
       const connectResult = await proxy.node?.quickConnectTo(proxy.country, { proxyPort: proxy.proxyPort, retries: 5 });
       if (connectResult) {
-        proxy.status = 'active';
+        proxy.status = connectResult;
       } else {
-        proxy.status = 'inactive';
+        proxy.status = ConnectionStatus.NOT_CONNECTED;
       }
       return proxy
     } catch (err: any) {
+      proxy.status = ConnectionStatus.NOT_CONNECTED;
       console.error(`failed to reconnect to country ${country}, error: ${err}`);
       return null
     }
@@ -134,19 +158,18 @@ class ProxyService {
     if (!proxy) return;
     // proxy.node = await buildNodeClient(proxy.port);
     try {
+      proxy.status = ConnectionStatus.CONNECTING;
       await proxy.node?.auth();
-      // await proxy.node?.cancelConnection();
-      // const connectResult = false;
       const connectResult = await proxy.node?.quickConnectTo(proxy.country, { proxyPort: proxy.proxyPort, retries: 5 });
-      
+      console.log(`Connecting Result to proxy. ${proxy.host}:${proxy.port} ${connectResult}`);
       if (connectResult) {
-        proxy.status = 'active';
+        proxy.status = connectResult;
       } else {
-        proxy.status = 'inactive';
+        proxy.status = ConnectionStatus.NOT_CONNECTED;
       }
     } catch (error) {
       console.error('Error connecting to proxy:', error);
-      proxy.status = 'inactive';
+      proxy.status = ConnectionStatus.NOT_CONNECTED;
     }
   }
   // Find proxy by ID
@@ -159,7 +182,7 @@ class ProxyService {
     const proxy = this.getProxyById(proxyId);
     console.log(proxy);
     if (!proxy) return null;
-    proxy.status = status;
+    proxy.status = status as ConnectionStatus;
     return proxy;
   }
 
@@ -176,20 +199,24 @@ class ProxyService {
 
     try {
       const connectionStatus = await proxy.node?.api.connectionStatus();
-      proxy.status = connectionStatus?.status === ConnectionStatus.CONNECTED ? 'active' : 'inactive';
-      const response = await axios.get('https://api.ipify.org?format=json', {
-        proxy: {
-          host: proxy.host,
-          port: proxy.proxyPort,
-          protocol: 'http'
-        },
-        timeout: 5000
-      });
-      proxy.status = 'active';
+      proxy.status = connectionStatus?.status as ConnectionStatus;
+      console.log(`${proxy.host}:${proxy.port} - ${proxy.status}`);
+      // if (proxy.status === 'active') {
+      //   const response = await axios.get('https://api.ipify.org?format=json', {
+      //       proxy: {
+      //         host: proxy.host,
+      //         port: proxy.proxyPort,
+      //         protocol: 'http'
+      //     },
+      //     timeout: 5000
+      //   });
+        
+      // }
       proxy.lastChecked = new Date();
       return proxy;
     } catch (error) {
-      proxy.status = 'inactive';
+      console.log(`${proxy.host}:${proxy.port} - Error Checking Status: ${error}`);
+      proxy.status = ConnectionStatus.NOT_CONNECTED;
       proxy.lastChecked = new Date();
       return proxy;
     }
@@ -200,14 +227,18 @@ class ProxyService {
     const proxy = this.getProxyById(proxyId);
     if (!proxy) return;
     const result = await this.checkProxyStatus(proxyId);
-    console.log(`${proxy.host}:${proxy.port} - ${result?.status}`);
-    if (result && result.status === 'inactive') await this.connectProxy(proxyId);
+    // console.log(`${proxy.host}:${proxy.port} - ${result?.status}`);
+    if (result && result.status === ConnectionStatus.NOT_CONNECTED) await this.connectProxy(proxyId);
   }
 
   async checkAllProxiesAndReconnect() {
-    for (const proxy of this.proxies) {
-      await this.checkAndReconnect(proxy.id);
-    }
+    const checkPromises = this.proxies.map(proxy => 
+      this.checkAndReconnect(proxy.id).catch(error => {
+          console.error(`Error checking proxy ${proxy.id}:`, error);
+          return null;
+      })
+    );
+    Promise.all(checkPromises);
   }
   // Bulk proxy status check
   async checkAllProxiesStatus(): Promise<Proxy[]> {
@@ -238,9 +269,10 @@ class ProxyService {
         port: baseAPIPort + i,
         proxyPort: baseProxyPort + i,
         country: defaultCountry,
-        status: 'unknown',
+        status: ConnectionStatus.NOT_CONNECTED,
         lastChecked: undefined,
-        node: undefined
+        node: undefined,
+        is_running: false
       }
       this.proxies.push(proxyInfo);
     }

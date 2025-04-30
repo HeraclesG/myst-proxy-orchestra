@@ -11,22 +11,24 @@ class ProxyCheckerService {
   // Periodic proxy checking
   startPeriodicCheck() {
     // Run every 15 minutes
-    cron.schedule('*/1 * * * *', async () => {
-      if (this.isRunning) {
-        console.log('Previous proxy check still in progress. Skipping this interval.');
-        return;
-      }
-      console.log('Starting periodic proxy check...');
-      try {
-        this.isRunning = true;
-        await this.proxyService.checkAllProxiesAndReconnect();
-      } catch (error) {
-        console.error('Error during periodic proxy check:', error);
-        this.isRunning = false;
-      } finally {
-        // Reset running flag
-        this.isRunning = false;
-      }
+    this.proxyService.proxies.forEach(proxy => {
+      cron.schedule('*/10 * * * * *', async () => {
+        if (proxy.is_running) {
+          console.log(`Previous Check in Proces. ${proxy.host}:${proxy.port}`);
+          return;
+        }
+        console.log(`Starting periodic proxy check. ${proxy.host}:${proxy.port}`);
+        try {
+          proxy.is_running = true;
+          await this.proxyService.checkAndReconnect(proxy.id);
+        } catch (error) {
+          console.error(`Error during periodic proxy check for ${proxy.host}:${proxy.port}:`, error);
+          proxy.is_running = false;
+        } finally {
+          // Reset running flag
+          proxy.is_running = false;
+        }
+      });
     });
   }
 }

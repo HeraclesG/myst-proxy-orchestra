@@ -1,4 +1,4 @@
-import { Identity, IdentityRegistrationStatus, Proposal, TequilapiClient, TequilapiClientFactory } from 'mysterium-vpn-js';
+import { ConnectionStatus, Identity, IdentityRegistrationStatus, Proposal, TequilapiClient, TequilapiClientFactory } from 'mysterium-vpn-js';
 import { log } from './common';
 import axios, { AxiosRequestConfig }  from 'axios';
 import {startContract } from '../inter'
@@ -31,9 +31,10 @@ export class NodeClient {
             console.log(`Reconnecting to: ${proxyPort}... (${this.connectedIdentity})`);
             await this.api.connectionCreate(this.connectionOptions(this.connectedIdentity, proxyPort), 40_000);
             log(`Reconnected to: ${proxyPort}! (${this.connectedIdentity})`);
-            return true;
+            return ConnectionStatus.CONNECTED;
         } catch (err: any) {
             log(`failed to reconnect, error: ${err}`);
+            return ConnectionStatus.NOT_CONNECTED;
         }
     }
 
@@ -48,7 +49,7 @@ export class NodeClient {
                 proposals = await this.api.findProposals(proposalQuery(country));
                 res = true
             } catch (err: any) {
-                log(`Fetch proposal failed`);
+                // log(`Fetch proposal failed`);
                 res = false
             }
         }
@@ -59,24 +60,24 @@ export class NodeClient {
             log(`connecting to ${country}... (proxyPort: ${providerId})`);
             try {
                 // connect to provider
-                const connectInfo = await this.api.connectionCreate(this.connectionOptions(providerId, proxyPort), 40_000);
+                // const currentresult = await this.api.identityCurrent({ passphrase: ''});
+                // const idid = currentresult.id
+                // const idresult = await this.api.identity(idid);
+                // console.log(idresult)
+                const connectInfo = await this.api.connectionCreate(this.connectionOptions(providerId, proxyPort), 50_000);
                 this.connectedIdentity = providerId
                 log(`connected to: ${proxyPort}! (${connectInfo})`);
-                return true;
+                return ConnectionStatus.CONNECTED;
             } catch (err: any) {
-                const connectionStatus = await this.api.connectionStatus();
-                console.log(connectionStatus.status)
-                log(`failed to connect ${country}, error: ${err}`);
-                log(`failed to connect ${country}, retries left: ${retries}`);
-                await this.delay(1000);
                 retries -= 1;
+                console.log(`failed to connect, error: ${err}, retries: ${retries}`);
                 if (retries === 0) {
-                    return false;
+                    const connectionStatus = await this.api.connectionStatus();
+                    return connectionStatus.status;
                 }
             }
         }
-        log(`could not quick connect to ${country} ${proposals.length === 0 ? '(no proposals found...)' : ''}`);
-        return false;
+        return ConnectionStatus.NOT_CONNECTED;
     }
     private delay(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));

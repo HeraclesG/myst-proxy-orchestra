@@ -58,12 +58,8 @@ class ProxyServer {
     try {
       // Set proxies to manual mode
       this.proxyService.makeProxiesManual();
-      
-      // Initialize proxies
       await this.proxyService.initProxies();
       
-      // Connect all proxies
-      await this.proxyService.connectAllProxies();
     } catch (error) {
       console.error('Failed to initialize proxies:', error);
       process.exit(1);
@@ -79,8 +75,7 @@ class ProxyServer {
     try {
       // Initialize proxies before starting the server
       await this.initializeProxies();
-
-      // Start periodic proxy checking
+      this.proxyService.connectAllProxies();
       this.startPeriodicChecking();
 
       // Start the server
