@@ -75,13 +75,14 @@ class ProxyServer {
     try {
       // Initialize proxies before starting the server
       await this.initializeProxies();
+      const server = this.app.listen(this.port, () => {
+        console.log(`Server running on port ${this.port}`);
+      });
       this.proxyService.connectAllProxies();
       this.startPeriodicChecking();
 
       // Start the server
-      const server = this.app.listen(this.port, () => {
-        console.log(`Server running on port ${this.port}`);
-      });
+     
 
       // Graceful shutdown
       this.setupGracefulShutdown(server);

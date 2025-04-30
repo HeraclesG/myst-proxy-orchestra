@@ -29,9 +29,9 @@ export class NodeClient {
             // connect to provider
             await this.cancelConnection();
             console.log(`Reconnecting to: ${proxyPort}... (${this.connectedIdentity})`);
-            await this.api.connectionCreate(this.connectionOptions(this.connectedIdentity, proxyPort), 40_000);
+            const connectInfo = await this.api.connectionCreate(this.connectionOptions(this.connectedIdentity, proxyPort), 40_000);
             log(`Reconnected to: ${proxyPort}! (${this.connectedIdentity})`);
-            return ConnectionStatus.CONNECTED;
+            return connectInfo.status;
         } catch (err: any) {
             log(`failed to reconnect, error: ${err}`);
             return ConnectionStatus.NOT_CONNECTED;
@@ -66,14 +66,13 @@ export class NodeClient {
                 // console.log(idresult)
                 const connectInfo = await this.api.connectionCreate(this.connectionOptions(providerId, proxyPort), 50_000);
                 this.connectedIdentity = providerId
-                log(`connected to: ${proxyPort}! (${connectInfo})`);
-                return ConnectionStatus.CONNECTED;
+                log(`connected to: ${proxyPort}! (${connectInfo.sessionId})`);
+                return connectInfo.status;
             } catch (err: any) {
                 retries -= 1;
                 console.log(`failed to connect, error: ${err}, retries: ${retries}`);
                 if (retries === 0) {
-                    const connectionStatus = await this.api.connectionStatus();
-                    return connectionStatus.status;
+                    return ConnectionStatus.NOT_CONNECTED
                 }
             }
         }

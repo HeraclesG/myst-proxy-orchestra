@@ -12,7 +12,7 @@ class ProxyCheckerService {
   startPeriodicCheck() {
     // Run every 15 minutes
     this.proxyService.proxies.forEach(proxy => {
-      cron.schedule('*/10 * * * * *', async () => {
+      cron.schedule('*/30 * * * * *', async () => {
         if (proxy.is_running) {
           console.log(`Previous Check in Proces. ${proxy.host}:${proxy.port}`);
           return;

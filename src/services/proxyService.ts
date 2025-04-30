@@ -61,16 +61,18 @@ class ProxyService {
               console.warn(`No node found for proxy ${proxy.id}`);
               return null;
           }
-          await proxy.node.auth();
+          // await proxy.node.auth();
+          // await proxy.node.cancelConnection();
+          // return proxy;
           const result = await this.checkProxyStatus(proxy.id);
 
           // Connect if inactive
           if(!result) return null;
           if (result && result.status === ConnectionStatus.NOT_CONNECTED) {
-              await this.connectProxy(proxy.id);
-              return proxy;
+            await this.connectProxy(proxy.id);
+            return proxy;
           } else {
-              return proxy;
+            return proxy;
           }
       } catch (error) {
           console.error(`Error processing proxy ${proxy.id}:`, error);
@@ -158,8 +160,8 @@ class ProxyService {
     if (!proxy) return;
     // proxy.node = await buildNodeClient(proxy.port);
     try {
-      proxy.status = ConnectionStatus.CONNECTING;
       await proxy.node?.auth();
+      proxy.status = ConnectionStatus.CONNECTING;
       const connectResult = await proxy.node?.quickConnectTo(proxy.country, { proxyPort: proxy.proxyPort, retries: 5 });
       console.log(`Connecting Result to proxy. ${proxy.host}:${proxy.port} ${connectResult}`);
       if (connectResult) {
@@ -198,20 +200,24 @@ class ProxyService {
     if (!proxy) return null;
 
     try {
-      const connectionStatus = await proxy.node?.api.connectionStatus();
-      proxy.status = connectionStatus?.status as ConnectionStatus;
+      // const connectionStatus = await proxy.node?.api.connectionStatus();
+      // proxy.status = connectionStatus?.status as ConnectionStatus;
+      if (proxy.status !== ConnectionStatus.CONNECTING) {
+        const response = await axios.get('https://api.ipify.org?format=json', {
+          proxy: {
+            host: proxy.host,
+            port: proxy.proxyPort,
+            protocol: 'http'
+          },
+          timeout: 5000
+        });
+        if (response.status === 200) {
+          proxy.status = ConnectionStatus.CONNECTED;
+        } else {
+          proxy.status = ConnectionStatus.NOT_CONNECTED;
+        }
+      }
       console.log(`${proxy.host}:${proxy.port} - ${proxy.status}`);
-      // if (proxy.status === 'active') {
-      //   const response = await axios.get('https://api.ipify.org?format=json', {
-      //       proxy: {
-      //         host: proxy.host,
-      //         port: proxy.proxyPort,
-      //         protocol: 'http'
-      //     },
-      //     timeout: 5000
-      //   });
-        
-      // }
       proxy.lastChecked = new Date();
       return proxy;
     } catch (error) {
@@ -254,6 +260,7 @@ class ProxyService {
 
   makeProxiesManual() {
     // Read start and end from .env, with fallback default values
+    dotenv.config();
     const startId = parseInt(process.env.PROXY_START_ID || '1', 10);
     const endId = parseInt(process.env.PROXY_END_ID || '400', 10);
     const baseHost = process.env.PROXY_HOST || '78.46.80.162';
