@@ -311,6 +311,7 @@ class ProxyService {
         currentCountryCount = 0;
       }
     }
+    console.log("Proxies length: ", this.proxies.length);
   }
   // Remove a proxy
   removeProxy(proxyId: string): boolean {
