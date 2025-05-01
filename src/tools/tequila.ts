@@ -62,7 +62,7 @@ export class NodeClient {
             country,
             count,
             percentage: (count / proposals.length * 100).toFixed(2),
-            distCont: Math.round( count / proposals.length * (countryCount))
+            distCont: Math.floor( count / proposals.length * (countryCount))
         }))
         // Sort by count in descending order
         .sort((a, b) => b.count - a.count);
