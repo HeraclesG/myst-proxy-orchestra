@@ -57,7 +57,7 @@ class ProxyServer {
   private async initializeProxies() {
     try {
       // Set proxies to manual mode
-      this.proxyService.makeProxiesManual();
+      await this.proxyService.makeProxiesManual();
       await this.proxyService.initProxies();
       
     } catch (error) {
