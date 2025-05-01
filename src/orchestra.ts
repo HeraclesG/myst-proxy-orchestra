@@ -58,7 +58,7 @@ class ProxyServer {
     try {
       // Set proxies to manual mode
       await this.proxyService.makeProxiesManual();
-      await this.proxyService.initProxies();
+      // await this.proxyService.initProxies();
       
     } catch (error) {
       console.error('Failed to initialize proxies:', error);
@@ -78,8 +78,8 @@ class ProxyServer {
       const server = this.app.listen(this.port, () => {
         console.log(`Server running on port ${this.port}`);
       });
-      this.proxyService.connectAllProxies();
-      this.startPeriodicChecking();
+      // this.proxyService.connectAllProxies();
+      // this.startPeriodicChecking();
 
       // Start the server
      
