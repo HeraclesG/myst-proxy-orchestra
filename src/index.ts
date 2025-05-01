@@ -42,14 +42,16 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Listen on a specific port
-const PORT = 3000; // Change to your desired port
-
+const PORT = 3001; // Change to your desired port
+const proposalQuery = (country: string) => ({ locationCountry: country.toUpperCase(), ipType: 'residential', qualityMin: 1.0 });
 server.listen(PORT, async () => {
     for( let i = 1; i <= 1; i++) {
         const node1 = await buildNodeClient(20000+i); // Initialize node client
         await node1.auth()
         try {
-            await node1.quickConnectTo("IT", { proxyPort: 10000+i, retries: 10 });
+            const proposals = await node1.api.findProposals(proposalQuery("IT"));
+            console.log(proposals);
+            // await node1.quickConnectTo("IT", { proxyPort: 10000+i, retries: 10 });
             
         } catch (error) {
             console.error('Connection error:');

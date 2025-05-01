@@ -229,6 +229,25 @@ class ProxyService {
   }
 
   // Check and reconnect to inactive proxies
+
+  async getProposals(count: number) {
+    
+      const node = await buildNodeClient(20001);
+      await node.auth();
+      let res = false;
+      while(!res){
+        try {
+          const countries = await node?.getProposals(count)
+          console.log(countries)
+          return countries
+        } catch (err: any) {
+            console.log(`Fetch proposal failed`);
+            res = false
+        }
+    }
+    
+  }
+  
   async checkAndReconnect(proxyId: string) {
     const proxy = this.getProxyById(proxyId);
     if (!proxy) return;
@@ -258,7 +277,7 @@ class ProxyService {
     return checkedProxies;
   }
 
-  makeProxiesManual() {
+  async makeProxiesManual() {
     // Read start and end from .env, with fallback default values
     dotenv.config();
     const startId = parseInt(process.env.PROXY_START_ID || '1', 10);
@@ -267,7 +286,11 @@ class ProxyService {
     const baseProxyPort = parseInt(process.env.PROXY_BASE_PORT || '10000', 10);
     const baseAPIPort = parseInt(process.env.API_BASE_PORT || '20000', 10);
     const defaultCountry = process.env.PROXY_COUNTRY || 'IT';
-
+    const countries = await this.getProposals(endId - startId + 1)
+      
+    
+    let currentCountryIndex = 0;
+    let currentCountryCount = 0;
     // Loop from start to end
     for (let i = startId; i <= endId; i++) {
       const proxyInfo: Proxy = {
@@ -275,13 +298,18 @@ class ProxyService {
         host: baseHost,
         port: baseAPIPort + i,
         proxyPort: baseProxyPort + i,
-        country: defaultCountry,
+        country: countries?.countries[currentCountryIndex].country || defaultCountry,
         status: ConnectionStatus.NOT_CONNECTED,
         lastChecked: undefined,
         node: undefined,
         is_running: false
       }
       this.proxies.push(proxyInfo);
+      currentCountryCount++;
+      if (currentCountryCount >= (countries?.countries[currentCountryIndex]?.distCont ?? 0)) {
+        currentCountryIndex = (currentCountryIndex + 1) % (countries?.countries?.length ?? 1);
+        currentCountryCount = 0;
+      }
     }
   }
   // Remove a proxy

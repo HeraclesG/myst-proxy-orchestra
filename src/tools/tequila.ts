@@ -38,6 +38,41 @@ export class NodeClient {
         }
     }
 
+    public async getProposals(countryCount: number) {
+        // Fetch proposals with residential IP type and minimum quality
+        
+        const proposals = await this.api.findProposals({
+            ipType: 'residential', 
+            qualityMin: 1.0
+        });
+    
+        // Count proposals by country
+        const proposalCountByCountry = proposals.reduce((countMap, proposal) => {
+            // Safely access country, default to 'Unknown' if not present
+            const country = proposal.location.country || 'Unknown';
+            
+            // Increment count for the country
+            countMap[country] = (countMap[country] || 0) + 1;
+            
+            return countMap;
+        }, {} as Record<string, number>);
+    
+        // Transform to array of objects for more flexible return
+        const proposalAnalysis = Object.entries(proposalCountByCountry).map(([country, count]) => ({
+            country,
+            count,
+            percentage: (count / proposals.length * 100).toFixed(2),
+            distCont: Math.round( count / proposals.length * (countryCount))
+        }))
+        // Sort by count in descending order
+        .sort((a, b) => b.count - a.count);
+    
+        return {
+            total: proposals.length,
+            countries: proposalAnalysis
+        };
+    }
+
     public async quickConnectTo(country: string, { proxyPort, retries }: QuickConnectOptions) {
         await this.cancelConnection();
         
@@ -119,7 +154,7 @@ export class NodeClient {
             return null
         }
     }
-
+    
     public async getTest() {
         const url = `http://136.243.175.139:8080/api/category`; // Replace with your actual URL
         console.log(url, this.token)
